@@ -9,6 +9,7 @@ import com.ibm.wala.cast.java.ssa.AstJavaInvokeInstruction;
 import com.ibm.wala.cast.java.ssa.EnclosingObjectReference;
 import com.ibm.wala.cast.loader.AstClass;
 import com.ibm.wala.cast.tree.CAstNode;
+import com.ibm.wala.cast.tree.impl.CAstSourcePositionRecorder;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IField;
 import com.ibm.wala.classLoader.IMethod;
@@ -66,7 +67,7 @@ public class ToSourceFromJava extends ToSource {
 
     @Override
     protected ToCAst makeToCAst(List<SSAInstruction> c) {
-      return new ToCAst(c, new CodeGenerationContext(types, mergePhis, false)) {
+      return new ToCAst(c, new CodeGenerationContext(types, mergePhis, false, super.positionRecorder)) {
 
         class JavaVisitor
             extends com.ibm.wala.cast.ir.toSource.ToSource.RegionTreeNode.ToCAst.Visitor

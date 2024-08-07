@@ -19,6 +19,7 @@ import com.ibm.wala.cast.tree.CAstAnnotation;
 import com.ibm.wala.cast.tree.CAstControlFlowMap;
 import com.ibm.wala.cast.tree.CAstEntity;
 import com.ibm.wala.cast.tree.CAstNode;
+import com.ibm.wala.cast.tree.CAstNodeTypeMap;
 import com.ibm.wala.cast.tree.CAstQualifier;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
@@ -26,6 +27,7 @@ import com.ibm.wala.cast.tree.CAstType;
 import com.ibm.wala.cast.tree.impl.CAstImpl;
 import com.ibm.wala.cast.tree.impl.CAstNodeTypeMapRecorder;
 import com.ibm.wala.cast.tree.impl.CAstOperator;
+import com.ibm.wala.cast.tree.impl.CAstSourcePositionRecorder;
 import com.ibm.wala.cast.tree.visit.CAstVisitor;
 import com.ibm.wala.cast.util.CAstPattern;
 import com.ibm.wala.cfg.ControlFlowGraph;
@@ -399,6 +401,7 @@ public abstract class ToSource {
   }
 
   protected static class CodeGenerationContext implements CAstVisitor.Context {
+    private final CAstSourcePositionRecorder positionMap;
     private final CAstEntity fakeTop =
         new CAstEntity() {
 
@@ -463,26 +466,22 @@ public abstract class ToSource {
 
           @Override
           public CAstSourcePositionMap getSourceMap() {
-            // TODO Auto-generated method stub
-            return null;
+            return positionMap;
           }
 
           @Override
           public Position getPosition() {
-            // TODO Auto-generated method stub
-            return null;
+            throw new RuntimeException("Unimplemented!");
           }
 
           @Override
           public Position getNamePosition() {
-            // TODO Auto-generated method stub
-            return null;
+            throw new RuntimeException("Unimplemented!");
           }
 
           @Override
           public Position getPosition(int arg) {
-            // TODO Auto-generated method stub
-            return null;
+            throw new RuntimeException("Unimplemented!");
           }
 
           private final CAstNodeTypeMapRecorder types = new CAstNodeTypeMapRecorder();
@@ -539,11 +538,12 @@ public abstract class ToSource {
     }
 
     public CodeGenerationContext(
-        TypeInference types, IntegerUnionFind mergePhis, boolean isTopLevel) {
+        TypeInference types, IntegerUnionFind mergePhis, boolean isTopLevel, CAstSourcePositionRecorder positionMap) {
       this.types = types;
       this.mergePhis = mergePhis;
       this.parentPrecedence = Integer.MAX_VALUE;
       this.isTopLevel = isTopLevel;
+      this.positionMap = positionMap;
     }
 
     public CodeGenerationContext(CodeGenerationContext parent, int precedence) {
@@ -551,6 +551,7 @@ public abstract class ToSource {
       this.mergePhis = parent.mergePhis;
       this.parentPrecedence = precedence;
       this.isTopLevel = false;
+      this.positionMap = parent.positionMap;
     }
 
     @Override
@@ -560,8 +561,7 @@ public abstract class ToSource {
 
     @Override
     public CAstSourcePositionMap getSourceMap() {
-      // TODO Auto-generated method stub
-      return null;
+      return positionMap;
     }
 
     public boolean isTopLevel() {
@@ -600,6 +600,7 @@ public abstract class ToSource {
     protected final Map<Integer, String> sourceNames;
     protected final Map<SSAInstruction, Map<ISSABasicBlock, RegionTreeNode>> children =
         HashMapFactory.make();
+    protected final CAstSourcePositionRecorder positionRecorder;
 
     protected CAstNode makeVariableName(int vn) {
       return ast.makeConstant(sourceNames.get(vn));
@@ -665,6 +666,7 @@ public abstract class ToSource {
       this.loops = parent.loops;
       this.ir = parent.ir;
       this.sourceNames = parent.sourceNames;
+      this.positionRecorder = new CAstSourcePositionRecorder();
       initChildren();
       System.err.println("added children for " + r + "," + l + ": " + children);
     }
@@ -744,6 +746,7 @@ public abstract class ToSource {
       this.cha = cha;
       this.types = types;
       this.ST = ir.getSymbolTable();
+      this.positionRecorder = new CAstSourcePositionRecorder();
 
       du = new DefUse(ir);
       cfg = ExceptionPrunedCFG.makeUncaught(ir.getControlFlowGraph());
@@ -1338,6 +1341,101 @@ public abstract class ToSource {
      * l.iIndex() < r.iIndex(); } } } } return false; }
      */
 
+    public CAstEntity toCAstEntity() {
+      CAstNode root = toCAst();
+      return new CAstEntity() {
+        @Override
+        public int getKind() {
+          return CAstNode.CAST;
+        }
+
+        @Override
+        public String getName() {
+          return "";
+        }
+
+        @Override
+        public String getSignature() {
+          return "";
+        }
+
+        @Override
+        public String[] getArgumentNames() {
+          return new String[0];
+        }
+
+        @Override
+        public CAstNode[] getArgumentDefaults() {
+          return new CAstNode[0];
+        }
+
+        @Override
+        public int getArgumentCount() {
+          return 0;
+        }
+
+        @Override
+        public Map<CAstNode, Collection<CAstEntity>> getAllScopedEntities() {
+          return Map.of();
+        }
+
+        @Override
+        public Iterator<CAstEntity> getScopedEntities(CAstNode construct) {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public CAstNode getAST() {
+          return root;
+        }
+
+        @Override
+        public CAstControlFlowMap getControlFlow() {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public CAstSourcePositionMap getSourceMap() {
+          return positionRecorder;
+        }
+
+        @Override
+        public Position getPosition() {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public Position getNamePosition() {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public Position getPosition(int arg) {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public CAstNodeTypeMap getNodeTypeMap() {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public Collection<CAstQualifier> getQualifiers() {
+          return List.of();
+        }
+
+        @Override
+        public CAstType getType() {
+          throw new RuntimeException("Unimplemented!");
+        }
+
+        @Override
+        public Collection<CAstAnnotation> getAnnotations() {
+          return List.of();
+        }
+      };
+    }
+
     public CAstNode toCAst() {
       CAst ast = new CAstImpl();
       List<CAstNode> elts = new LinkedList<>();
@@ -1449,7 +1547,7 @@ public abstract class ToSource {
     }
 
     protected ToCAst makeToCAst(List<SSAInstruction> insts) {
-      return new ToCAst(insts, new CodeGenerationContext(types, mergePhis, false));
+      return new ToCAst(insts, new CodeGenerationContext(types, mergePhis, false, this.positionRecorder));
     }
 
     private void toString(StringBuffer text, int level) {
@@ -1517,6 +1615,7 @@ public abstract class ToSource {
         private final Map<String, Set<String>> packages;
         private Loop loop = null;
         private List<CAstNode> elts = null;
+        private final CAstSourcePositionRecorder positionMap;
 
         private void logHistory(SSAInstruction inst) {
           if (history != null && !history.isEmpty()) {
@@ -1553,6 +1652,7 @@ public abstract class ToSource {
           this.children = children;
           this.parentDecls = parentDecls;
           this.packages = parentPackages;
+          this.positionMap = (CAstSourcePositionRecorder) c.getSourceMap();
           root.visit(this);
           if (root.hasDef()) {
             if (node.getKind() != CAstNode.EMPTY) {
@@ -1603,6 +1703,7 @@ public abstract class ToSource {
           this.children = children;
           this.parentDecls = parentDecls;
           this.packages = parentPackages;
+          this.positionMap = (CAstSourcePositionRecorder) c.getSourceMap();
           root.visit(this);
           if (root.hasDef()) {
             if (node.getKind() != CAstNode.EMPTY) {
@@ -1642,6 +1743,15 @@ public abstract class ToSource {
                   d ->
                       varDefPattern(ast.makeConstant(sourceNames.get(mergePhis.find(def))))
                           .match(d, null));
+        }
+
+        // PRE: node set to new node, ir.getMethod returns instance of AstMethod
+        // EFFECTS: Modifies positionMap
+        private void markPosition(int iIndex) {
+          assert (ir.getMethod() instanceof AstMethod) : "Expected AstMethod containing source position information";
+          AstMethod m = (AstMethod)ir.getMethod();
+          Position pos = m.getSourcePosition(iIndex);
+          positionMap.setPosition(node, pos);
         }
 
         @SuppressWarnings("unused")
@@ -1715,6 +1825,7 @@ public abstract class ToSource {
           } else {
             node = ast.makeNode(CAstNode.BLOCK_STMT, ast.makeNode(CAstNode.GOTO));
           }
+          markPosition(inst.iIndex());
         }
 
         @Override
@@ -1723,6 +1834,7 @@ public abstract class ToSource {
           CAstNode index = visit(instruction.getIndex());
           CAstNode elt = ast.makeConstant(toSource(instruction.getElementType()));
           node = ast.makeNode(CAstNode.ARRAY_REF, array, elt, index);
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -1736,6 +1848,7 @@ public abstract class ToSource {
                   CAstNode.EXPR_STMT,
                   ast.makeNode(
                       CAstNode.ASSIGN, ast.makeNode(CAstNode.ARRAY_REF, array, elt, index), value));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -1830,6 +1943,7 @@ public abstract class ToSource {
                         ast.makeConstant(true),
                         left,
                         right);
+                markPosition(instruction.iIndex());
                 return;
               default:
                 break;
@@ -1837,6 +1951,7 @@ public abstract class ToSource {
           }
 
           node = ast.makeNode(CAstNode.BINARY_EXPR, op, left, right);
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -1853,6 +1968,7 @@ public abstract class ToSource {
           }
 
           node = ast.makeNode(CAstNode.UNARY_EXPR, op, arg);
+          markPosition(instruction.iIndex());
         }
 
         private final MethodReference iv =
@@ -1874,6 +1990,7 @@ public abstract class ToSource {
                 ast.makeNode(
                     CAstNode.CAST, ast.makeConstant(toSource(instruction.getToType())), value);
           }
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -1897,6 +2014,7 @@ public abstract class ToSource {
           }
 
           node = ast.makeNode(CAstNode.BINARY_EXPR, op, left, right);
+          markPosition(instruction.iIndex());
         }
 
         private CAstNode checkLinePhi(
@@ -2284,9 +2402,11 @@ public abstract class ToSource {
                     // reuse LOOP type but add third child as a boolean to tell if it's a do while
                     // loop
                     ast.makeConstant(LoopType.DOWHILE.equals(loopType)));
+            markPosition(instruction.iIndex());
 
             ISSABasicBlock next = cfg.getBlockForInstruction(instruction.getTarget());
             node = checkLinePhi(node, instruction, next);
+            markPosition(instruction.iIndex());
 
             if (cc.size() > 1) {
               HashMap<ISSABasicBlock, RegionTreeNode> copy = HashMapFactory.make(cc);
@@ -2306,6 +2426,7 @@ public abstract class ToSource {
                         CAstNode.BLOCK_STMT,
                         node,
                         afterBlock.toArray(new CAstNode[afterBlock.size()]));
+                markPosition(instruction.iIndex());
               }
             }
           } else {
@@ -2390,6 +2511,7 @@ public abstract class ToSource {
                   makeIfStmt(
                       ast.makeNode(CAstNode.UNARY_EXPR, CAstOperator.OP_NOT, test), notTakenStmt);
             }
+            markPosition(instruction.iIndex());
           }
         }
 
@@ -2474,6 +2596,7 @@ public abstract class ToSource {
                   ast.makeNode(
                       CAstNode.BLOCK_STMT, defaultStuff.toArray(new CAstNode[defaultStuff.size()])),
                   switchCode.toArray(new CAstNode[switchCode.size()]));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2482,6 +2605,7 @@ public abstract class ToSource {
             CAstNode arg = visit(instruction.getUse(0));
             node = ast.makeNode(CAstNode.RETURN, arg);
           }
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2499,6 +2623,7 @@ public abstract class ToSource {
                               .getClassName())
                       : visit(instruction.getRef()),
                   ast.makeConstant(instruction.getDeclaredField()));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2531,6 +2656,7 @@ public abstract class ToSource {
                             ast.makeConstant(instruction.getDeclaredField())),
                         visit(instruction.getVal())));
           }
+          markPosition(instruction.iIndex());
         }
 
         protected void visitAbstractInvoke(SSAAbstractInvokeInstruction inst) {
@@ -2562,6 +2688,7 @@ public abstract class ToSource {
             recordPackage(inst.getDeclaredResultType());
             node = ast.makeNode(CAstNode.CALL, args);
           }
+          markPosition(inst.iIndex());
         }
 
         @Override
@@ -2582,6 +2709,7 @@ public abstract class ToSource {
             recordPackage(newType);
 
             node = ast.makeNode(CAstNode.NEW, ast.makeConstant(newType), dims);
+            markPosition(instruction.iIndex());
           }
         }
 
@@ -2605,11 +2733,13 @@ public abstract class ToSource {
                   CAstNode.OBJECT_REF,
                   visit(instruction.getArrayRef()),
                   ast.makeConstant("length"));
+          markPosition(instruction.iIndex());
         }
 
         @Override
         public void visitThrow(SSAThrowInstruction instruction) {
           node = ast.makeNode(CAstNode.THROW, visit(instruction.getUse(0)));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2624,6 +2754,7 @@ public abstract class ToSource {
                   CAstNode.CAST,
                   ast.makeConstant(toSource(instruction.getDeclaredResultTypes()[0])),
                   visit(instruction.getVal()));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2633,6 +2764,7 @@ public abstract class ToSource {
                   CAstNode.INSTANCEOF,
                   ast.makeConstant(instruction.getCheckedType()),
                   visit(instruction.getRef()));
+          markPosition(instruction.iIndex());
         }
 
         @Override
@@ -2651,23 +2783,27 @@ public abstract class ToSource {
         }
 
         @Override
-        public void visitLoadMetadata(SSALoadMetadataInstruction instruction) {
-          node = ast.makeConstant(instruction.getToken());
+        public void visitLoadMetadata(SSALoadMetadataInstruction inst) {
+          node = ast.makeConstant(inst.getToken());
+          markPosition(inst.iIndex());
         }
 
         @Override
         public void visitAssign(AssignInstruction inst) {
           node = visit(inst.getUse(0));
+          markPosition(inst.iIndex());
         }
 
         @Override
-        public <T> void visitUnspecified(SSAUnspecifiedInstruction<T> instruction) {
-          node = ast.makeNode(CAstNode.PRIMITIVE, ast.makeConstant(instruction.getPayload()));
+        public <T> void visitUnspecified(SSAUnspecifiedInstruction<T> inst) {
+          node = ast.makeNode(CAstNode.PRIMITIVE, ast.makeConstant(inst.getPayload()));
+          markPosition(inst.iIndex());
         }
 
         @Override
-        public <T> void visitUnspecifiedExpr(SSAUnspecifiedExprInstruction<T> instruction) {
-          node = ast.makeNode(CAstNode.PRIMITIVE, ast.makeConstant(instruction.getPayload()));
+        public <T> void visitUnspecifiedExpr(SSAUnspecifiedExprInstruction<T> inst) {
+          node = ast.makeNode(CAstNode.PRIMITIVE, ast.makeConstant(inst.getPayload()));
+          markPosition(inst.iIndex());
         }
       }
 
@@ -3266,7 +3402,9 @@ public abstract class ToSource {
 
     System.err.println("tree");
     System.err.println(root);
-    CAstNode ast = root.toCAst();
+    CAstEntity entity = root.toCAstEntity();
+    CAstNode ast = entity.getAST();
+    CAstSourcePositionRecorder positionMap = (CAstSourcePositionRecorder) entity.getSourceMap();
     System.err.println(ast);
 
     Map<String, Object> varTypes = HashMapFactory.make();
@@ -3397,7 +3535,7 @@ public abstract class ToSource {
         pw = new PrintWriter(new TeeWriter(out, sw));
       }
       ToJavaVisitor toJava = makeToJavaVisitor(ir, pw, level, varTypes);
-      toJava.visit(ast, new CodeGenerationContext(types, root.mergePhis, true), toJava);
+      toJava.visit(ast, new CodeGenerationContext(types, root.mergePhis, true, positionMap), toJava);
       if (codeRecorder != null) {
         codeRecorder.put(ir.getMethod().getReference(), sw.getBuffer().toString());
       }
@@ -3417,10 +3555,10 @@ public abstract class ToSource {
                 try {
                   if (s.containsKey("v")) {
                     CAstNode v = (CAstNode) s.get("v");
-                    ev.visit(v, new CodeGenerationContext(types, root.mergePhis, true), ev);
+                    ev.visit(v, new CodeGenerationContext(types, root.mergePhis, true, positionMap), ev);
                     o.print(" = ");
                   }
-                  ev.visit(e, new CodeGenerationContext(types, root.mergePhis, true), ev);
+                  ev.visit(e, new CodeGenerationContext(types, root.mergePhis, true, positionMap), ev);
                   o.print("\n");
                   o.flush();
                 } catch (Throwable e1) {
